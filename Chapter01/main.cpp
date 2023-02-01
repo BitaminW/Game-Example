@@ -1,5 +1,11 @@
 #include <iostream>
+#include <algorithm>
 
+// pair 좌표
+#define X first
+#define Y second
+
+// 게임판
 const char stageData[] = "\
 ########\n\
 # ..   #\n\
@@ -102,10 +108,46 @@ void draw(const Object* state, int width, int height){
 }
 
 void update(Object* state, char input, int width, int height){
+	int dx = 0;
+	int dy = 0;
+	switch (input) {
+	case'a': dx = -1; break;     // 왼쪽
+	case'd': dx = 1; break;		 // 오른쪽
+	case'w': dy = -1; break;	 // 위
+	case's': dy = 1; break;		 // 아래
+	}
+
+	// 플레이어 좌표 검색
+	int i;
+	for (i = 0; i < width * height; ++i) {
+		// 목적지에 도착한 플레이어 or 보통 상태 플레이어인 경우
+		if (checkPlayer(state, i)) {
+			break;
+		}
+	}
+
+	// x는 폭으로 나눈 나머지  // y는 폭으로 나눈 몫
+	std::pair<int, int> cur = { i % width, i / width };
+
+	// 이동 후 좌표
+	std::pair<int, int> target = { cur.X + dx, cur.Y + dy };
+	
+	// 게임 전체 크기에서 벗어날 경우 이동하지 않음
+	if (target.X < 0 || target.Y < 0 || target.X >= width || target.Y >= height) {
+		return;
+	}
+
+	int p = (cur.Y * width) + cur.X;		// 플레이어 현재 위치
+	int tp = target.X * width + target.Y;	// 목표 위치
 }
 
 bool checkClear(const Object* state, int width, int height){
 	return false;
+}
+
+// 플레이어 상태확인 
+bool checkPlayer(Object* state, int index) {
+	return (state[index] == Object::OBJ_MAN) || (state[index] == Object::OBJ_MAN_ON_GOAL);
 }
 
 // 게임 종료 후
@@ -114,4 +156,5 @@ void gameExit(Object* state) {
 	delete[] state;
 	state = nullptr;
 }
+
 
