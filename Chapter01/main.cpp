@@ -1,5 +1,7 @@
 #include <iostream>
 #include <algorithm>
+#include <Windows.h>
+#include <conio.h>
 
 // pair 좌표
 #define X first
@@ -8,7 +10,7 @@
 // 게임판
 const char stageData[] = "\
 ########\n\
-# ..   #\n\
+# .. p #\n\
 # oo   #\n\
 #      #\n\
 ########";
@@ -16,7 +18,17 @@ const char stageData[] = "\
 const int stageWidth = 8;
 const int stageHeight = 5;
 
-enum class Object {
+// 커서 숨김
+void CursorView()
+{
+	CONSOLE_CURSOR_INFO cursorInfo = { 0, };
+	cursorInfo.dwSize = 1; //커서 굵기 (1 ~ 100)
+	cursorInfo.bVisible = FALSE; //커서 Visible TRUE(보임) FALSE(숨김)
+	SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &cursorInfo);
+}
+
+
+enum class Object : unsigned int {
 	OBJ_SPACE,
 	OBJ_WALL,
 	OBJ_GOAL,
@@ -33,6 +45,7 @@ void initialize(Object*, int, int, const char*);
 void draw(const Object*, int, int);
 void update(Object*, char, int, int);
 bool checkClear(const Object*, int, int);
+bool checkPlayer(Object*, int);
 void gameExit(Object*);
 
 
@@ -42,6 +55,7 @@ int main() {
 	Object* state = new Object[stageWidth * stageHeight];
 	// 스테이지 초기화
 	initialize(state, stageWidth, stageHeight, stageData);
+	CursorView();		// 커서 숨김
 
 	while (true) {
 		draw(state, stageWidth, stageHeight);
@@ -50,11 +64,16 @@ int main() {
 			break;
 		}
 		// 입력값 취득
-		std::cout << "a:left s:right w:up z:down. command?" << "\n";
+		std::cout << "a:left d:right w:up s:down. command?" << "\n";
 		char input;
-		std::cin >> input;
+		// std::cin >> input;
+		
+		
+		input = static_cast<char>(_getch()); // 키입력
 
+		system("cls");
 		update(state, input, stageWidth, stageHeight);
+
 	}
 
 	gameExit(state);
@@ -111,10 +130,18 @@ void update(Object* state, char input, int width, int height){
 	int dx = 0;
 	int dy = 0;
 	switch (input) {
-	case'a': dx = -1; break;     // 왼쪽
-	case'd': dx = 1; break;		 // 오른쪽
-	case'w': dy = -1; break;	 // 위
-	case's': dy = 1; break;		 // 아래
+		case'a': 
+			dx = -1; 
+			break;     // 왼쪽
+		case'd': 
+			dx = 1; 
+			break;		 // 오른쪽
+		case'w': 
+			dy = -1; 
+			break;	 // 위
+		case's': 
+			dy = 1; 
+			break;		 // 아래
 	}
 
 	// 플레이어 좌표 검색
@@ -125,24 +152,47 @@ void update(Object* state, char input, int width, int height){
 			break;
 		}
 	}
+	int x = i % width;
+	int y = i / width;
 
-	// x는 폭으로 나눈 나머지  // y는 폭으로 나눈 몫
-	std::pair<int, int> cur = { i % width, i / width };
+	int tx = x + dx;
+	int ty = y + dy;
 
-	// 이동 후 좌표
-	std::pair<int, int> target = { cur.X + dx, cur.Y + dy };
-	
-	// 게임 전체 크기에서 벗어날 경우 이동하지 않음
-	if (target.X < 0 || target.Y < 0 || target.X >= width || target.Y >= height) {
+	if (tx < 0 || ty < 0 || tx >= width || dy >= height)
 		return;
-	}
 
-	int p = (cur.Y * width) + cur.X;		// 플레이어 현재 위치
-	int tp = target.X * width + target.Y;	// 목표 위치
+	int p = y * width + x;
+	int tp = ty * width + tx;
+	if (state[tp] == Object::OBJ_SPACE || state[tp] == Object::OBJ_GOAL)
+	{
+		state[tp] = (state[tp] == Object::OBJ_GOAL) ? Object::OBJ_MAN_ON_GOAL : Object::OBJ_MAN;
+		state[p] = (state[p] == Object::OBJ_MAN_ON_GOAL) ? Object::OBJ_GOAL : Object::OBJ_SPACE;
+	}
+	else if (state[tp] == Object::OBJ_BLOCK || state[tp] == Object::OBJ_BLOCK_ON_GOAL)
+	{
+		int tx2 = tx + dx;
+		int ty2 = ty + dy;
+		if (tx2 < 0 || ty2 < 0 || tx2 >= width || ty2 >= height)
+		{
+			return;
+		}
+
+		int tp2 = ty2 * width + tx2;
+		if (state[tp2] == Object::OBJ_SPACE || state[tp2] == Object::OBJ_GOAL)
+		{
+			state[tp2] = (state[tp2] == Object::OBJ_GOAL) ? Object::OBJ_BLOCK_ON_GOAL : Object::OBJ_BLOCK;
+			state[tp] = (state[tp] == Object::OBJ_BLOCK_ON_GOAL) ? Object::OBJ_MAN_ON_GOAL : Object::OBJ_MAN;
+			state[p] = (state[p] == Object::OBJ_MAN_ON_GOAL) ? Object::OBJ_GOAL : Object::OBJ_SPACE;
+		}
+	}
 }
 
 bool checkClear(const Object* state, int width, int height){
-	return false;
+	for (int i = 0; i < width * height; i++) {
+		if (state[i] == Object::OBJ_BLOCK)
+			return false;
+	}
+	return true;
 }
 
 // 플레이어 상태확인 
@@ -156,5 +206,7 @@ void gameExit(Object* state) {
 	delete[] state;
 	state = nullptr;
 }
+
+
 
 
